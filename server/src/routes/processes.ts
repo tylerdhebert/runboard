@@ -1,0 +1,134 @@
+import Elysia, { t } from "elysia";
+import { db } from "../db";
+import { processes } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
+import { processManager } from "../processManager";
+import { wsManager } from "../wsManager";
+
+function nowIso() { return new Date().toISOString(); }
+
+// Helper: sync DB row into processManager registry
+function syncToRegistry(row: typeof processes.$inferSelect) {
+  processManager.init(row.id);
+}
+
+export const processRoutes = new Elysia({ prefix: "/processes" })
+  // List all processes with runtime state merged in
+  .get("/", () => {
+    const rows = db.select().from(processes).all();
+    // Ensure all DB processes are in the registry
+    rows.forEach(syncToRegistry);
+    return rows.map(row => ({
+      ...row,
+      ...(processManager.get(row.id) ?? {}),
+    }));
+  })
+
+  // Create a process definition
+  .post(
+    "/",
+    ({ body }) => {
+      const id = randomUUID();
+      const now = nowIso();
+      const row = { id, ...body, createdAt: now, updatedAt: now };
+      db.insert(processes).values(row).run();
+      const created = db.select().from(processes).where(eq(processes.id, id)).get()!;
+      syncToRegistry(created);
+      wsManager.broadcast("process:created", created);
+      return created;
+    },
+    {
+      body: t.Object({
+        name: t.String(),
+        command: t.String(),
+        cwd: t.Optional(t.String({ default: "." })),
+        env: t.Optional(t.String({ default: "{}" })),
+        autoRestart: t.Optional(t.Boolean({ default: false })),
+      }),
+    }
+  )
+
+  // Update a process definition
+  .patch(
+    "/:id",
+    ({ params, body }) => {
+      const now = nowIso();
+      db.update(processes).set({ ...body, updatedAt: now }).where(eq(processes.id, params.id)).run();
+      const updated = db.select().from(processes).where(eq(processes.id, params.id)).get();
+      if (!updated) throw new Error("Not found");
+      wsManager.broadcast("process:updated", updated);
+      return updated;
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Partial(t.Object({
+        name: t.String(),
+        command: t.String(),
+        cwd: t.String(),
+        env: t.String(),
+        autoRestart: t.Boolean(),
+      })),
+    }
+  )
+
+  // Delete a process definition (and stop it if running)
+  .delete(
+    "/:id",
+    ({ params }) => {
+      processManager.remove(params.id);
+      db.delete(processes).where(eq(processes.id, params.id)).run();
+      wsManager.broadcast("process:deleted", { id: params.id });
+      return { success: true };
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // Start
+  .post(
+    "/:id/start",
+    ({ params, set }) => {
+      const row = db.select().from(processes).where(eq(processes.id, params.id)).get();
+      if (!row) { set.status = 404; return { error: "Not found" }; }
+      const env = JSON.parse(row.env ?? "{}") as Record<string, string>;
+      processManager.start(row.id, row.command, row.cwd ?? ".", env);
+      return { success: true };
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // Stop
+  .post(
+    "/:id/stop",
+    ({ params }) => {
+      processManager.stop(params.id);
+      return { success: true };
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // Restart
+  .post(
+    "/:id/restart",
+    ({ params, set }) => {
+      const row = db.select().from(processes).where(eq(processes.id, params.id)).get();
+      if (!row) { set.status = 404; return { error: "Not found" }; }
+      const env = JSON.parse(row.env ?? "{}") as Record<string, string>;
+      processManager.restart(row.id, row.command, row.cwd ?? ".", env);
+      return { success: true };
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // Get last N log lines
+  .get(
+    "/:id/logs",
+    ({ params, query }) => {
+      const last = query.last ? parseInt(query.last) : 200;
+      return { logs: processManager.getLogs(params.id, last) };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      query: t.Optional(t.Object({ last: t.Optional(t.String()) })),
+    }
+  );
