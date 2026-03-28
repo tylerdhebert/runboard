@@ -27,7 +27,7 @@ export function App() {
   // Subscribe to process-level WS events to keep the list fresh
   useEffect(() => {
     return subscribeWS((event) => {
-      if (["process:status", "process:created", "process:deleted", "process:updated", "process:ports"].includes(event)) {
+      if (["process:status", "process:created", "process:deleted", "process:updated", "process:ports", "process:health"].includes(event)) {
         queryClient.invalidateQueries({ queryKey: ["processes"] });
       }
     });

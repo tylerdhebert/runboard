@@ -28,6 +28,7 @@ export function initDb() {
     "ALTER TABLE processes ADD COLUMN saved_logs TEXT",
     "ALTER TABLE processes ADD COLUMN notes TEXT",
     "ALTER TABLE processes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE processes ADD COLUMN health_url TEXT",
   ]) {
     try { sqlite.run(sql); } catch {}
   }

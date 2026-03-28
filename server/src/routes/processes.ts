@@ -27,7 +27,7 @@ logPersistence.load = (id) => {
 
 // Helper: sync DB row into processManager registry
 function syncToRegistry(row: typeof processes.$inferSelect) {
-  processManager.init(row.id, row.autoRestart);
+  processManager.init(row.id, row.autoRestart, row.healthUrl);
 }
 
 export const processRoutes = new Elysia({ prefix: "/processes" })
@@ -64,6 +64,7 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
         autoRestart: t.Optional(t.Boolean({ default: false })),
         autoStart: t.Optional(t.Boolean({ default: false })),
         notes: t.Optional(t.String()),
+        healthUrl: t.Optional(t.String()),
       }),
     }
   )
@@ -89,6 +90,7 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
         autoRestart: t.Boolean(),
         autoStart: t.Boolean(),
         notes: t.String(),
+        healthUrl: t.String(),
       })),
     }
   )

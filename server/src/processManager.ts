@@ -8,6 +8,7 @@ export const logPersistence = {
 };
 
 export type ProcessStatus = "running" | "stopped" | "errored";
+export type HealthStatus = "healthy" | "unhealthy" | null;
 
 export interface ProcessState {
   id: string;
@@ -18,11 +19,36 @@ export interface ProcessState {
   autoRestart: boolean;
   logBuffer: string[]; // circular, max 500 lines
   detectedPorts: number[]; // ports parsed from log output
+  healthUrl: string | null;
+  healthStatus: HealthStatus;
 }
 
 const MAX_LOG_LINES = 500;
 const registry = new Map<string, ProcessState>();
 const childProcs = new Map<string, ReturnType<typeof spawn>>();
+
+// Health check polling — runs every 30s for all running processes with a healthUrl
+async function pollHealth(id: string) {
+  const state = registry.get(id);
+  if (!state || state.status !== "running" || !state.healthUrl) return;
+  try {
+    const res = await fetch(state.healthUrl, { signal: AbortSignal.timeout(5000) });
+    const next: HealthStatus = res.ok ? "healthy" : "unhealthy";
+    if (state.healthStatus !== next) {
+      state.healthStatus = next;
+      wsManager.broadcast("process:health", { processId: id, healthStatus: next });
+    }
+  } catch {
+    if (state.healthStatus !== "unhealthy") {
+      state.healthStatus = "unhealthy";
+      wsManager.broadcast("process:health", { processId: id, healthStatus: "unhealthy" });
+    }
+  }
+}
+
+setInterval(() => {
+  for (const id of registry.keys()) pollHealth(id);
+}, 30_000);
 
 // Patterns that commonly indicate a server is listening on a port.
 // Matches: "port 3000", ":3000", "localhost:3000", "0.0.0.0:3000", "http://...:3000"
@@ -54,7 +80,7 @@ function pushLog(id: string, stream: "stdout" | "stderr", line: string) {
 }
 
 export const processManager = {
-  init(id: string, autoRestart = false) {
+  init(id: string, autoRestart = false, healthUrl?: string | null) {
     if (!registry.has(id)) {
       registry.set(id, {
         id,
@@ -65,7 +91,13 @@ export const processManager = {
         autoRestart,
         logBuffer: logPersistence.load(id), // restore persisted logs
         detectedPorts: [],
+        healthUrl: healthUrl ?? null,
+        healthStatus: null,
       });
+    } else {
+      // Update healthUrl if it changed
+      const state = registry.get(id)!;
+      if (healthUrl !== undefined) state.healthUrl = healthUrl ?? null;
     }
   },
 
@@ -99,7 +131,10 @@ export const processManager = {
     state.status = "running";
     state.startedAt = new Date().toISOString();
     state.detectedPorts = []; // reset on each start
+    state.healthStatus = null; // reset health on each start
     childProcs.set(id, child);
+    // Initial health poll after 5s startup delay
+    if (state.healthUrl) setTimeout(() => pollHealth(id), 5000);
 
     child.stdout?.setEncoding("utf8");
     child.stderr?.setEncoding("utf8");

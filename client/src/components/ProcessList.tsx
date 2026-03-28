@@ -62,6 +62,12 @@ export function ProcessList({ processes, selectedId, onSelect, onEdit, onDelete 
             <StatusDot status={p.status} />
             <span className="font-mono text-sm font-medium text-slate-100 truncate">{p.name}</span>
             {p.pinned && <span className="text-amber-400 text-[10px]" title="Pinned">📌</span>}
+            {p.healthStatus === "healthy" && (
+              <span className="text-[10px] font-mono text-green-400 bg-green-950/50 border border-green-900/50 px-1.5 py-0.5 rounded" title={p.healthUrl ?? ""}>healthy</span>
+            )}
+            {p.healthStatus === "unhealthy" && (
+              <span className="text-[10px] font-mono text-red-400 bg-red-950/50 border border-red-900/50 px-1.5 py-0.5 rounded" title={p.healthUrl ?? ""}>unhealthy</span>
+            )}
             <Uptime startedAt={p.startedAt} />
             {!!p.restartCount && (
               <span className="ml-auto shrink-0 text-[10px] font-mono text-amber-500 bg-amber-950/50 px-1.5 py-0.5 rounded">

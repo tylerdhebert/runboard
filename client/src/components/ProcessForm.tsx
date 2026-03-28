@@ -43,6 +43,7 @@ export function ProcessForm({ process, onClose, onSaved }: Props) {
   const [autoRestart, setAutoRestart] = useState(process?.autoRestart ?? false);
   const [autoStart, setAutoStart] = useState(process?.autoStart ?? false);
   const [notes, setNotes] = useState(process?.notes ?? "");
+  const [healthUrl, setHealthUrl] = useState(process?.healthUrl ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +67,7 @@ export function ProcessForm({ process, onClose, onSaved }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const body = { name, command, cwd, env: parseEnv(), autoRestart, autoStart, notes: notes || undefined };
+      const body = { name, command, cwd, env: parseEnv(), autoRestart, autoStart, notes: notes || undefined, healthUrl: healthUrl || undefined };
       if (process) {
         await apiFetch(`/processes/${process.id}`, { method: "PATCH", body: JSON.stringify(body) });
       } else {
@@ -127,6 +128,11 @@ export function ProcessForm({ process, onClose, onSaved }: Props) {
           <div>
             <label className="text-xs font-mono text-slate-400 block mb-1">Notes <span className="text-slate-600">(optional)</span></label>
             <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="What does this process do?"
+              className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label className="text-xs font-mono text-slate-400 block mb-1">Health Check URL <span className="text-slate-600">(optional, polled every 30s)</span></label>
+            <input value={healthUrl} onChange={e => setHealthUrl(e.target.value)} placeholder="http://localhost:3000/health"
               className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-blue-500" />
           </div>
           <div className="flex flex-col gap-2">
