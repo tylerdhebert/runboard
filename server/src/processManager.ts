@@ -9,6 +9,7 @@ export interface ProcessState {
   status: ProcessStatus;
   startedAt: string | null;
   restartCount: number;
+  autoRestart: boolean;
   logBuffer: string[]; // circular, max 500 lines
 }
 
@@ -19,14 +20,15 @@ const childProcs = new Map<string, ReturnType<typeof spawn>>();
 function pushLog(id: string, stream: "stdout" | "stderr", line: string) {
   const state = registry.get(id);
   if (!state) return;
-  const entry = `[${stream}] ${line}`;
+  const ts = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+  const entry = `[${ts}] [${stream}] ${line}`;
   state.logBuffer.push(entry);
   if (state.logBuffer.length > MAX_LOG_LINES) state.logBuffer.shift();
   wsManager.broadcast("log:line", { processId: id, line: entry });
 }
 
 export const processManager = {
-  init(id: string) {
+  init(id: string, autoRestart = false) {
     if (!registry.has(id)) {
       registry.set(id, {
         id,
@@ -34,6 +36,7 @@ export const processManager = {
         status: "stopped",
         startedAt: null,
         restartCount: 0,
+        autoRestart,
         logBuffer: [],
       });
     }
@@ -47,12 +50,15 @@ export const processManager = {
     return Array.from(registry.values());
   },
 
-  start(id: string, command: string, cwd: string, env: Record<string, string>): void {
+  start(id: string, command: string, cwd: string, env: Record<string, string>, autoRestart?: boolean): void {
     const existing = childProcs.get(id);
     if (existing && !existing.killed) existing.kill();
 
     const state = registry.get(id);
     if (!state) return;
+
+    // Update autoRestart in state if explicitly provided
+    if (autoRestart !== undefined) state.autoRestart = autoRestart;
 
     // Parse command into argv
     const [cmd, ...args] = command.split(/\s+/);
@@ -80,17 +86,43 @@ export const processManager = {
     child.on("exit", (code) => {
       const s = registry.get(id);
       if (!s) return;
+      // If stop() already set status to "stopped", the user intentionally stopped it — don't override or auto-restart
+      if (s.status === "stopped") return;
       s.pid = null;
       s.status = code === 0 ? "stopped" : "errored";
-      wsManager.broadcast("process:status", { processId: id, status: s.status });
+      wsManager.broadcast("process:status", { processId: id, status: s.status, code });
+      // Auto-restart on crash (non-zero or signal kill) if enabled and not manually stopped
+      if (s.autoRestart && s.status === "errored") {
+        s.restartCount++;
+        pushLog(id, "stdout", `[runboard] auto-restarting in 1s (restart #${s.restartCount})...`);
+        wsManager.broadcast("process:status", { processId: id, status: "errored", restartCount: s.restartCount });
+        setTimeout(() => {
+          const current = registry.get(id);
+          // Bail if state was removed or manually started/stopped in the interim
+          if (!current || current.status !== "errored") return;
+          processManager.start(id, command, cwd, env);
+        }, 1000);
+      }
     });
 
     wsManager.broadcast("process:status", { processId: id, status: "running", pid: state.pid });
   },
 
+  stopAll(): void {
+    for (const id of registry.keys()) this.stop(id);
+  },
+
   stop(id: string): void {
     const child = childProcs.get(id);
-    if (child && !child.killed) child.kill();
+    if (child && !child.killed) {
+      // On Windows, child.kill() only kills the cmd.exe shell, not its spawned process.
+      // taskkill /T kills the entire process tree.
+      if (process.platform === "win32" && child.pid) {
+        spawn("taskkill", ["/F", "/T", "/PID", String(child.pid)]);
+      } else {
+        child.kill();
+      }
+    }
     const state = registry.get(id);
     if (state) {
       state.status = "stopped";
@@ -99,11 +131,15 @@ export const processManager = {
     }
   },
 
-  restart(id: string, command: string, cwd: string, env: Record<string, string>): void {
+  restart(id: string, command: string, cwd: string, env: Record<string, string>, autoRestart?: boolean): void {
     this.stop(id);
     const state = registry.get(id);
-    if (state) state.restartCount++;
-    setTimeout(() => this.start(id, command, cwd, env), 300);
+    if (state) {
+      state.restartCount++;
+      // Re-set status to stopped so the exit handler (from stop()) doesn't conflict
+      state.status = "stopped";
+    }
+    setTimeout(() => this.start(id, command, cwd, env, autoRestart), 300);
   },
 
   remove(id: string): void {
@@ -116,5 +152,12 @@ export const processManager = {
     const state = registry.get(id);
     if (!state) return [];
     return state.logBuffer.slice(-last);
+  },
+
+  clearLogs(id: string): void {
+    const state = registry.get(id);
+    if (!state) return;
+    state.logBuffer = [];
+    wsManager.broadcast("log:cleared", { processId: id });
   },
 };

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Process } from "./api/types";
 import { apiFetch } from "./api/client";
+import { subscribeWS } from "./api/ws";
 import { ProcessList } from "./components/ProcessList";
 import { LogViewer } from "./components/LogViewer";
 import { ProcessForm } from "./components/ProcessForm";
@@ -18,17 +19,14 @@ export function App() {
     refetchInterval: 3000,
   });
 
-  // WebSocket for real-time updates
-  useState(() => {
-    const ws = new WebSocket(`ws://${window.location.host}/ws`);
-    ws.onmessage = (e) => {
-      const { event } = JSON.parse(e.data);
-      if (event === "log:line" || event === "process:status" || event === "process:created" || event === "process:deleted" || event === "process:updated") {
+  // Subscribe to process-level WS events to keep the list fresh
+  useEffect(() => {
+    return subscribeWS((event) => {
+      if (["process:status", "process:created", "process:deleted", "process:updated"].includes(event)) {
         queryClient.invalidateQueries({ queryKey: ["processes"] });
       }
-    };
-    return () => ws.close();
-  });
+    });
+  }, [queryClient]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiFetch(`/processes/${id}`, { method: "DELETE" }),

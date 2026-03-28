@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import type { Process } from "../api/types";
 import { apiFetch } from "../api/client";
 
@@ -15,12 +16,21 @@ function StatusDot({ status }: { status?: string }) {
   return <span className={`inline-block w-2 h-2 rounded-full ${color} shrink-0`} />;
 }
 
-function Uptime({ startedAt }: { startedAt?: string | null }) {
-  if (!startedAt) return null;
+function formatUptime(startedAt: string) {
   const secs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
   const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
-  const str = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
-  return <span className="text-slate-500 text-[10px] font-mono">{str}</span>;
+  return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+function Uptime({ startedAt }: { startedAt?: string | null }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!startedAt) return;
+    const id = setInterval(() => tick(n => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+  if (!startedAt) return null;
+  return <span className="text-slate-500 text-[10px] font-mono">{formatUptime(startedAt)}</span>;
 }
 
 export function ProcessList({ processes, selectedId, onSelect, onEdit, onDelete }: Props) {
@@ -52,6 +62,11 @@ export function ProcessList({ processes, selectedId, onSelect, onEdit, onDelete 
             <StatusDot status={p.status} />
             <span className="font-mono text-sm font-medium text-slate-100 truncate">{p.name}</span>
             <Uptime startedAt={p.startedAt} />
+            {!!p.restartCount && (
+              <span className="ml-auto shrink-0 text-[10px] font-mono text-amber-500 bg-amber-950/50 px-1.5 py-0.5 rounded">
+                ↺{p.restartCount}
+              </span>
+            )}
           </div>
           <div className="text-slate-500 text-xs font-mono truncate mb-2">{p.command}</div>
           <div className="flex gap-1.5">

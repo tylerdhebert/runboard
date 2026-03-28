@@ -10,7 +10,7 @@ function nowIso() { return new Date().toISOString(); }
 
 // Helper: sync DB row into processManager registry
 function syncToRegistry(row: typeof processes.$inferSelect) {
-  processManager.init(row.id);
+  processManager.init(row.id, row.autoRestart);
 }
 
 export const processRoutes = new Elysia({ prefix: "/processes" })
@@ -91,7 +91,7 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
       const row = db.select().from(processes).where(eq(processes.id, params.id)).get();
       if (!row) { set.status = 404; return { error: "Not found" }; }
       const env = JSON.parse(row.env ?? "{}") as Record<string, string>;
-      processManager.start(row.id, row.command, row.cwd ?? ".", env);
+      processManager.start(row.id, row.command, row.cwd ?? ".", env, row.autoRestart);
       return { success: true };
     },
     { params: t.Object({ id: t.String() }) }
@@ -114,7 +114,7 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
       const row = db.select().from(processes).where(eq(processes.id, params.id)).get();
       if (!row) { set.status = 404; return { error: "Not found" }; }
       const env = JSON.parse(row.env ?? "{}") as Record<string, string>;
-      processManager.restart(row.id, row.command, row.cwd ?? ".", env);
+      processManager.restart(row.id, row.command, row.cwd ?? ".", env, row.autoRestart);
       return { success: true };
     },
     { params: t.Object({ id: t.String() }) }
@@ -131,4 +131,14 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
       params: t.Object({ id: t.String() }),
       query: t.Optional(t.Object({ last: t.Optional(t.String()) })),
     }
+  )
+
+  // Clear log buffer
+  .delete(
+    "/:id/logs",
+    ({ params }) => {
+      processManager.clearLogs(params.id);
+      return { success: true };
+    },
+    { params: t.Object({ id: t.String() }) }
   );
