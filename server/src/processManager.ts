@@ -11,11 +11,30 @@ export interface ProcessState {
   restartCount: number;
   autoRestart: boolean;
   logBuffer: string[]; // circular, max 500 lines
+  detectedPorts: number[]; // ports parsed from log output
 }
 
 const MAX_LOG_LINES = 500;
 const registry = new Map<string, ProcessState>();
 const childProcs = new Map<string, ReturnType<typeof spawn>>();
+
+// Patterns that commonly indicate a server is listening on a port.
+// Matches: "port 3000", ":3000", "localhost:3000", "0.0.0.0:3000", "http://...:3000"
+const PORT_PATTERN = /(?:port\s+|:)(\d{2,5})(?:[\/\s"'\n]|$)/gi;
+
+function detectPorts(id: string, line: string) {
+  const state = registry.get(id);
+  if (!state) return;
+  let match;
+  PORT_PATTERN.lastIndex = 0;
+  while ((match = PORT_PATTERN.exec(line)) !== null) {
+    const port = parseInt(match[1], 10);
+    if (port >= 80 && port <= 65535 && !state.detectedPorts.includes(port)) {
+      state.detectedPorts.push(port);
+      wsManager.broadcast("process:ports", { processId: id, ports: state.detectedPorts });
+    }
+  }
+}
 
 function pushLog(id: string, stream: "stdout" | "stderr", line: string) {
   const state = registry.get(id);
@@ -25,6 +44,7 @@ function pushLog(id: string, stream: "stdout" | "stderr", line: string) {
   state.logBuffer.push(entry);
   if (state.logBuffer.length > MAX_LOG_LINES) state.logBuffer.shift();
   wsManager.broadcast("log:line", { processId: id, line: entry });
+  detectPorts(id, line);
 }
 
 export const processManager = {
@@ -38,6 +58,7 @@ export const processManager = {
         restartCount: 0,
         autoRestart,
         logBuffer: [],
+        detectedPorts: [],
       });
     }
   },
@@ -71,6 +92,7 @@ export const processManager = {
     state.pid = child.pid ?? null;
     state.status = "running";
     state.startedAt = new Date().toISOString();
+    state.detectedPorts = []; // reset on each start
     childProcs.set(id, child);
 
     child.stdout?.setEncoding("utf8");

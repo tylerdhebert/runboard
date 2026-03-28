@@ -141,4 +141,42 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
       return { success: true };
     },
     { params: t.Object({ id: t.String() }) }
+  )
+
+  // Export all process definitions as JSON
+  .get("/export", () => {
+    const rows = db.select().from(processes).all();
+    return rows.map(({ id: _id, createdAt: _c, updatedAt: _u, ...def }) => def);
+  })
+
+  // Import process definitions (skips duplicates by name)
+  .post(
+    "/import",
+    ({ body }) => {
+      const now = nowIso();
+      let imported = 0;
+      const existing = db.select().from(processes).all();
+      const existingNames = new Set(existing.map(p => p.name));
+      for (const def of body.processes) {
+        if (existingNames.has(def.name)) continue;
+        const id = randomUUID();
+        db.insert(processes).values({ id, ...def, createdAt: now, updatedAt: now }).run();
+        const created = db.select().from(processes).where(eq(processes.id, id)).get()!;
+        syncToRegistry(created);
+        wsManager.broadcast("process:created", created);
+        imported++;
+      }
+      return { imported, skipped: body.processes.length - imported };
+    },
+    {
+      body: t.Object({
+        processes: t.Array(t.Object({
+          name: t.String(),
+          command: t.String(),
+          cwd: t.Optional(t.String()),
+          env: t.Optional(t.String()),
+          autoRestart: t.Optional(t.Boolean()),
+        })),
+      }),
+    }
   );

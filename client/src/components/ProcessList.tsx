@@ -68,7 +68,23 @@ export function ProcessList({ processes, selectedId, onSelect, onEdit, onDelete 
               </span>
             )}
           </div>
-          <div className="text-slate-500 text-xs font-mono truncate mb-2">{p.command}</div>
+          <div className="text-slate-500 text-xs font-mono truncate mb-1.5">{p.command}</div>
+          {p.detectedPorts?.length > 0 && (
+            <div className="flex gap-1 flex-wrap mb-1.5">
+              {p.detectedPorts.map(port => (
+                <a
+                  key={port}
+                  href={`http://localhost:${port}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="text-[10px] font-mono text-sky-400 bg-sky-950/50 border border-sky-900/50 px-1.5 py-0.5 rounded hover:border-sky-500 transition-colors"
+                >
+                  :{port}
+                </a>
+              ))}
+            </div>
+          )}
           <div className="flex gap-1.5">
             {p.status === "running" ? (
               <>
