@@ -61,6 +61,7 @@ export function ProcessList({ processes, selectedId, onSelect, onEdit, onDelete 
           <div className="flex items-center gap-2 mb-1">
             <StatusDot status={p.status} />
             <span className="font-mono text-sm font-medium text-slate-100 truncate">{p.name}</span>
+            {p.pinned && <span className="text-amber-400 text-[10px]" title="Pinned">📌</span>}
             <Uptime startedAt={p.startedAt} />
             {!!p.restartCount && (
               <span className="ml-auto shrink-0 text-[10px] font-mono text-amber-500 bg-amber-950/50 px-1.5 py-0.5 rounded">
@@ -106,9 +107,21 @@ export function ProcessList({ processes, selectedId, onSelect, onEdit, onDelete 
                 Start
               </button>
             )}
+            <button
+              onClick={e => { e.stopPropagation(); controlMutation.mutate({ id: p.id, action: "pin" }); }}
+              title={p.pinned ? "Unpin" : "Pin to top"}
+              className={`px-2 py-0.5 text-[10px] font-mono rounded transition-colors ml-auto ${p.pinned ? "bg-amber-950/50 text-amber-400 hover:bg-slate-700" : "bg-slate-700 hover:bg-slate-600 text-slate-500"}`}>
+              📌
+            </button>
             <button onClick={e => { e.stopPropagation(); onEdit(p); }}
-              className="px-2 py-0.5 text-[10px] font-mono bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors ml-auto">
+              className="px-2 py-0.5 text-[10px] font-mono bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">
               Edit
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); controlMutation.mutate({ id: p.id, action: "duplicate" }); }}
+              title="Duplicate"
+              className="px-2 py-0.5 text-[10px] font-mono bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors">
+              ⎘
             </button>
             <button onClick={e => { e.stopPropagation(); onDelete(p.id); }}
               className="px-2 py-0.5 text-[10px] font-mono bg-slate-700 hover:bg-red-900 text-red-400 rounded transition-colors">

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import AnsiToHtml from "ansi-to-html";
 import type { Process } from "../api/types";
 import { apiFetch } from "../api/client";
 import { subscribeWS } from "../api/ws";
@@ -7,6 +8,35 @@ import { subscribeWS } from "../api/ws";
 interface Props {
   processId: string | null;
   processes: Process[];
+}
+
+const ansiConverter = new AnsiToHtml({
+  escapeXML: true,   // escape < > & before converting — prevents XSS
+  stream: false,
+  colors: {
+    0: "#1e293b",
+    1: "#f87171",
+    2: "#4ade80",
+    3: "#facc15",
+    4: "#60a5fa",
+    5: "#c084fc",
+    6: "#34d399",
+    7: "#cbd5e1",
+  },
+});
+
+function renderLine(line: string): { prefix: string | null; streamLabel: string | null; isStderr: boolean; html: string } {
+  const isStderr = line.includes("[stderr]");
+  const tsMatch = line.match(/^(\[\d{2}:\d{2}:\d{2}\.\d{3}\] )(\[\w+\] )(.*)/s);
+  if (tsMatch) {
+    return {
+      prefix: tsMatch[1],
+      streamLabel: tsMatch[2],
+      isStderr,
+      html: ansiConverter.toHtml(tsMatch[3]),
+    };
+  }
+  return { prefix: null, streamLabel: null, isStderr, html: ansiConverter.toHtml(line) };
 }
 
 export function LogViewer({ processId, processes }: Props) {
@@ -51,6 +81,9 @@ export function LogViewer({ processId, processes }: Props) {
     ? allLines.filter(l => l.toLowerCase().includes(filter.toLowerCase()))
     : allLines;
 
+  // Render all lines upfront to avoid per-render ANSI conversion
+  const renderedLines = useMemo(() => displayLines.map(renderLine), [displayLines]);
+
   const handleClear = async () => {
     if (!processId) return;
     setClearing(true);
@@ -59,6 +92,17 @@ export function LogViewer({ processId, processes }: Props) {
     } finally {
       setClearing(false);
     }
+  };
+
+  const handleDownload = () => {
+    const text = allLines.join("\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${process?.name ?? processId}-logs.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (!processId) {
@@ -85,14 +129,18 @@ export function LogViewer({ processId, processes }: Props) {
           className="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-xs font-mono text-slate-300 placeholder-slate-600 focus:outline-none focus:border-slate-500 w-36"
         />
         {filter && (
-          <button
-            onClick={() => setFilter("")}
-            className="text-slate-600 hover:text-slate-400 text-xs font-mono"
-          >
+          <button onClick={() => setFilter("")} className="text-slate-600 hover:text-slate-400 text-xs font-mono">
             ✕
           </button>
         )}
         <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={handleDownload}
+            disabled={allLines.length === 0}
+            className="text-xs font-mono text-slate-600 hover:text-slate-400 disabled:opacity-30 transition-colors"
+          >
+            download
+          </button>
           <button
             onClick={handleClear}
             disabled={clearing || allLines.length === 0}
@@ -107,26 +155,18 @@ export function LogViewer({ processId, processes }: Props) {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-4 font-mono text-xs bg-slate-950">
-        {displayLines.length === 0 ? (
+        {renderedLines.length === 0 ? (
           <span className="text-slate-600">
             {allLines.length === 0 ? "No logs yet. Start the process to see output." : "No lines match filter."}
           </span>
         ) : (
-          displayLines.map((line, i) => {
-            const isStderr = line.includes("[stderr]");
-            const tsMatch = line.match(/^(\[\d{2}:\d{2}:\d{2}\.\d{3}\] )(\[\w+\] )(.*)/s);
-            return (
-              <div key={i} className={`leading-5 whitespace-pre-wrap break-all ${isStderr ? "text-red-400" : "text-slate-300"}`}>
-                {tsMatch ? (
-                  <>
-                    <span className="text-slate-600">{tsMatch[1]}</span>
-                    <span className={isStderr ? "text-red-700" : "text-slate-600"}>{tsMatch[2]}</span>
-                    {tsMatch[3]}
-                  </>
-                ) : line}
-              </div>
-            );
-          })
+          renderedLines.map((r, i) => (
+            <div key={i} className={`leading-5 whitespace-pre-wrap break-all ${r.isStderr && !r.html.includes("color") ? "text-red-400" : "text-slate-300"}`}>
+              {r.prefix && <span className="text-slate-600">{r.prefix}</span>}
+              {r.streamLabel && <span className={r.isStderr ? "text-red-700" : "text-slate-600"}>{r.streamLabel}</span>}
+              <span dangerouslySetInnerHTML={{ __html: r.html }} />
+            </div>
+          ))
         )}
         <div ref={bottomRef} />
       </div>

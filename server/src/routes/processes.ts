@@ -164,6 +164,45 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
     { params: t.Object({ id: t.String() }) }
   )
 
+  // Toggle pin
+  .post(
+    "/:id/pin",
+    ({ params, set }) => {
+      const row = db.select().from(processes).where(eq(processes.id, params.id)).get();
+      if (!row) { set.status = 404; return { error: "Not found" }; }
+      const pinned = !row.pinned;
+      db.update(processes).set({ pinned, updatedAt: nowIso() }).where(eq(processes.id, params.id)).run();
+      const updated = db.select().from(processes).where(eq(processes.id, params.id)).get()!;
+      wsManager.broadcast("process:updated", updated);
+      return updated;
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // Duplicate a process definition
+  .post(
+    "/:id/duplicate",
+    ({ params, set }) => {
+      const row = db.select().from(processes).where(eq(processes.id, params.id)).get();
+      if (!row) { set.status = 404; return { error: "Not found" }; }
+      const { id: _id, createdAt: _c, updatedAt: _u, savedLogs: _s, ...def } = row;
+      const newId = randomUUID();
+      const now = nowIso();
+      // Find a unique name: "name copy", "name copy 2", etc.
+      const existing = new Set(db.select({ name: processes.name }).from(processes).all().map(p => p.name));
+      let newName = `${def.name} copy`;
+      let n = 2;
+      while (existing.has(newName)) newName = `${def.name} copy ${n++}`;
+      const newRow = { ...def, id: newId, name: newName, createdAt: now, updatedAt: now };
+      db.insert(processes).values(newRow).run();
+      const created = db.select().from(processes).where(eq(processes.id, newId)).get()!;
+      syncToRegistry(created);
+      wsManager.broadcast("process:created", created);
+      return created;
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
   // Start all stopped processes
   .post("/start-all", ({ }) => {
     const rows = db.select().from(processes).all();

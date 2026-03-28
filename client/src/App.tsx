@@ -7,6 +7,7 @@ import { ProcessList } from "./components/ProcessList";
 import { LogViewer } from "./components/LogViewer";
 import { ProcessForm } from "./components/ProcessForm";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useCrashNotifications } from "./hooks/useCrashNotifications";
 
 export function App() {
   const queryClient = useQueryClient();
@@ -15,11 +16,13 @@ export function App() {
   const [editProcess, setEditProcess] = useState<Process | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: processes = [] } = useQuery<Process[]>({
+  const { data: rawProcesses = [] } = useQuery<Process[]>({
     queryKey: ["processes"],
     queryFn: () => apiFetch("/processes"),
     refetchInterval: 3000,
   });
+  // Pinned processes always appear first
+  const processes = [...rawProcesses].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
   // Subscribe to process-level WS events to keep the list fresh
   useEffect(() => {
@@ -87,6 +90,7 @@ export function App() {
   const handleFormClose = () => { setShowForm(false); setEditProcess(null); };
 
   useKeyboardShortcuts(processes, selectedId, setSelectedId);
+  useCrashNotifications(processes);
 
   // Live page title: "runboard (3 running)"
   const runningCount = processes.filter(p => p.status === "running").length;

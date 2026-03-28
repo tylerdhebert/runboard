@@ -7,6 +7,7 @@ export interface Process {
   env: string; // JSON string of key=value pairs
   autoRestart: boolean;
   autoStart: boolean;
+  pinned: boolean;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
