@@ -1,6 +1,12 @@
 import { spawn } from "child_process";
 import { wsManager } from "./wsManager";
 
+// Pluggable persistence hooks — set by routes at startup to avoid circular imports
+export const logPersistence = {
+  save: (_id: string, _lines: string[]): void => {},
+  load: (_id: string): string[] => [],
+};
+
 export type ProcessStatus = "running" | "stopped" | "errored";
 
 export interface ProcessState {
@@ -57,7 +63,7 @@ export const processManager = {
         startedAt: null,
         restartCount: 0,
         autoRestart,
-        logBuffer: [],
+        logBuffer: logPersistence.load(id), // restore persisted logs
         detectedPorts: [],
       });
     }
@@ -109,9 +115,13 @@ export const processManager = {
       const s = registry.get(id);
       if (!s) return;
       // If stop() already set status to "stopped", the user intentionally stopped it — don't override or auto-restart
-      if (s.status === "stopped") return;
+      if (s.status === "stopped") {
+        logPersistence.save(id, s.logBuffer);
+        return;
+      }
       s.pid = null;
       s.status = code === 0 ? "stopped" : "errored";
+      logPersistence.save(id, s.logBuffer);
       wsManager.broadcast("process:status", { processId: id, status: s.status, code });
       // Auto-restart on crash (non-zero or signal kill) if enabled and not manually stopped
       if (s.autoRestart && s.status === "errored") {
@@ -180,6 +190,7 @@ export const processManager = {
     const state = registry.get(id);
     if (!state) return;
     state.logBuffer = [];
+    logPersistence.save(id, []);
     wsManager.broadcast("log:cleared", { processId: id });
   },
 };

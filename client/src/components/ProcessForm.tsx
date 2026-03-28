@@ -41,6 +41,7 @@ export function ProcessForm({ process, onClose, onSaved }: Props) {
     } catch { return ""; }
   });
   const [autoRestart, setAutoRestart] = useState(process?.autoRestart ?? false);
+  const [autoStart, setAutoStart] = useState(process?.autoStart ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +65,7 @@ export function ProcessForm({ process, onClose, onSaved }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const body = { name, command, cwd, env: parseEnv(), autoRestart };
+      const body = { name, command, cwd, env: parseEnv(), autoRestart, autoStart };
       if (process) {
         await apiFetch(`/processes/${process.id}`, { method: "PATCH", body: JSON.stringify(body) });
       } else {
@@ -122,10 +123,16 @@ export function ProcessForm({ process, onClose, onSaved }: Props) {
             <textarea value={envText} onChange={e => setEnvText(e.target.value)} rows={3} placeholder={"PORT=8080\nNODE_ENV=development"}
               className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-blue-500 resize-none" />
           </div>
-          <label className="flex items-center gap-2 text-sm font-mono text-slate-300 cursor-pointer">
-            <input type="checkbox" checked={autoRestart} onChange={e => setAutoRestart(e.target.checked)} />
-            Auto-restart on crash
-          </label>
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-sm font-mono text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={autoRestart} onChange={e => setAutoRestart(e.target.checked)} />
+              Auto-restart on crash
+            </label>
+            <label className="flex items-center gap-2 text-sm font-mono text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={autoStart} onChange={e => setAutoStart(e.target.checked)} />
+              Auto-start when runboard launches
+            </label>
+          </div>
         </div>
         {error && <p className="text-red-400 text-xs font-mono mt-3">{error}</p>}
         <div className="flex gap-2 mt-4 justify-end">

@@ -16,8 +16,17 @@ export function initDb() {
       cwd TEXT NOT NULL DEFAULT '.',
       env TEXT NOT NULL DEFAULT '{}',
       auto_restart INTEGER NOT NULL DEFAULT 0,
+      auto_start INTEGER NOT NULL DEFAULT 0,
+      saved_logs TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
   `);
+  // Safe migrations for existing databases
+  for (const sql of [
+    "ALTER TABLE processes ADD COLUMN auto_start INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE processes ADD COLUMN saved_logs TEXT",
+  ]) {
+    try { sqlite.run(sql); } catch {}
+  }
 }

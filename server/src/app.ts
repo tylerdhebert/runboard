@@ -1,11 +1,23 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
-import { initDb } from "./db";
+import { initDb, db } from "./db";
+import { processes } from "./db/schema";
 import { wsManager } from "./wsManager";
 import { processRoutes } from "./routes/processes";
+import { processManager } from "./processManager";
 
 initDb();
+
+// Auto-start processes marked with autoStart: true
+// logPersistence hooks are wired by processRoutes at module evaluation time (ESM import)
+const autoStartRows = db.select().from(processes).all().filter(p => p.autoStart);
+for (const row of autoStartRows) {
+  processManager.init(row.id, row.autoRestart);
+  const env = JSON.parse(row.env ?? "{}") as Record<string, string>;
+  processManager.start(row.id, row.command, row.cwd ?? ".", env, row.autoRestart);
+  console.log(`[runboard] auto-starting: ${row.name}`);
+}
 
 export const app = new Elysia()
   .use(cors())

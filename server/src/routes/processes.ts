@@ -3,10 +3,27 @@ import { db } from "../db";
 import { processes } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { processManager } from "../processManager";
+import { processManager, logPersistence } from "../processManager";
 import { wsManager } from "../wsManager";
 
 function nowIso() { return new Date().toISOString(); }
+
+// Wire up log persistence so processManager can save/load without importing DB
+logPersistence.save = (id, lines) => {
+  try {
+    db.update(processes)
+      .set({ savedLogs: JSON.stringify(lines.slice(-2000)), updatedAt: nowIso() })
+      .where(eq(processes.id, id))
+      .run();
+  } catch {}
+};
+logPersistence.load = (id) => {
+  try {
+    const row = db.select({ savedLogs: processes.savedLogs }).from(processes).where(eq(processes.id, id)).get();
+    if (row?.savedLogs) return JSON.parse(row.savedLogs) as string[];
+  } catch {}
+  return [];
+};
 
 // Helper: sync DB row into processManager registry
 function syncToRegistry(row: typeof processes.$inferSelect) {
@@ -19,10 +36,10 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
     const rows = db.select().from(processes).all();
     // Ensure all DB processes are in the registry
     rows.forEach(syncToRegistry);
-    return rows.map(row => ({
-      ...row,
-      ...(processManager.get(row.id) ?? {}),
-    }));
+    return rows.map(({ savedLogs: _savedLogs, ...row }) => {
+      const { logBuffer: _logBuffer, ...runtime } = processManager.get(row.id) ?? {};
+      return { ...row, ...runtime };
+    });
   })
 
   // Create a process definition
@@ -45,6 +62,7 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
         cwd: t.Optional(t.String({ default: "." })),
         env: t.Optional(t.String({ default: "{}" })),
         autoRestart: t.Optional(t.Boolean({ default: false })),
+        autoStart: t.Optional(t.Boolean({ default: false })),
       }),
     }
   )
@@ -68,6 +86,7 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
         cwd: t.String(),
         env: t.String(),
         autoRestart: t.Boolean(),
+        autoStart: t.Boolean(),
       })),
     }
   )
