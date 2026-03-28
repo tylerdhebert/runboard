@@ -8,6 +8,7 @@ export const processes = sqliteTable("processes", {
   env: text("env").notNull().default("{}"),      // JSON string of key-value env vars
   autoRestart: integer("auto_restart", { mode: "boolean" }).notNull().default(false),
   autoStart: integer("auto_start", { mode: "boolean" }).notNull().default(false),
+  notes: text("notes"),                          // optional freeform notes about this process
   savedLogs: text("saved_logs"),                 // JSON array — last run's log buffer
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),

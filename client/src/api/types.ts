@@ -7,6 +7,7 @@ export interface Process {
   env: string; // JSON string of key=value pairs
   autoRestart: boolean;
   autoStart: boolean;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
   // Runtime state (merged in from processManager, always present after first GET)

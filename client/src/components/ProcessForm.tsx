@@ -42,6 +42,7 @@ export function ProcessForm({ process, onClose, onSaved }: Props) {
   });
   const [autoRestart, setAutoRestart] = useState(process?.autoRestart ?? false);
   const [autoStart, setAutoStart] = useState(process?.autoStart ?? false);
+  const [notes, setNotes] = useState(process?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +66,7 @@ export function ProcessForm({ process, onClose, onSaved }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const body = { name, command, cwd, env: parseEnv(), autoRestart, autoStart };
+      const body = { name, command, cwd, env: parseEnv(), autoRestart, autoStart, notes: notes || undefined };
       if (process) {
         await apiFetch(`/processes/${process.id}`, { method: "PATCH", body: JSON.stringify(body) });
       } else {
@@ -122,6 +123,11 @@ export function ProcessForm({ process, onClose, onSaved }: Props) {
             <label className="text-xs font-mono text-slate-400 block mb-1">Environment Variables <span className="text-slate-600">(KEY=value, one per line)</span></label>
             <textarea value={envText} onChange={e => setEnvText(e.target.value)} rows={3} placeholder={"PORT=8080\nNODE_ENV=development"}
               className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-blue-500 resize-none" />
+          </div>
+          <div>
+            <label className="text-xs font-mono text-slate-400 block mb-1">Notes <span className="text-slate-600">(optional)</span></label>
+            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="What does this process do?"
+              className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-blue-500" />
           </div>
           <div className="flex flex-col gap-2">
             <label className="flex items-center gap-2 text-sm font-mono text-slate-300 cursor-pointer">

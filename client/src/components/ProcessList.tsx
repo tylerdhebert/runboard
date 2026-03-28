@@ -68,7 +68,10 @@ export function ProcessList({ processes, selectedId, onSelect, onEdit, onDelete 
               </span>
             )}
           </div>
-          <div className="text-slate-500 text-xs font-mono truncate mb-1.5">{p.command}</div>
+          <div className="text-slate-500 text-xs font-mono truncate mb-1">{p.command}</div>
+          {p.notes && (
+            <div className="text-slate-600 text-[11px] font-mono truncate mb-1 italic">{p.notes}</div>
+          )}
           {p.detectedPorts?.length > 0 && (
             <div className="flex gap-1 flex-wrap mb-1.5">
               {p.detectedPorts.map(port => (

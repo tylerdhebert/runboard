@@ -76,11 +76,23 @@ export function App() {
     e.target.value = ""; // reset so same file can be re-imported
   };
 
+  const bulkMutation = useMutation({
+    mutationFn: (action: "start-all" | "stop-all") =>
+      apiFetch(`/processes/${action}`, { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["processes"] }),
+  });
+
   const handleEdit = (p: Process) => { setEditProcess(p); setShowForm(true); };
   const handleDelete = (id: string) => { if (confirm("Delete this process?")) deleteMutation.mutate(id); };
   const handleFormClose = () => { setShowForm(false); setEditProcess(null); };
 
   useKeyboardShortcuts(processes, selectedId, setSelectedId);
+
+  // Live page title: "runboard (3 running)"
+  const runningCount = processes.filter(p => p.status === "running").length;
+  useEffect(() => {
+    document.title = runningCount > 0 ? `runboard (${runningCount} running)` : "runboard";
+  }, [runningCount]);
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
@@ -90,6 +102,25 @@ export function App() {
         <span className="text-slate-600 text-sm font-mono">local process manager</span>
         <span className="text-slate-700 text-xs font-mono hidden sm:block">↑↓ navigate · s start · x stop · r restart</span>
         <div className="ml-auto flex items-center gap-2">
+          {processes.length > 0 && (
+            <>
+              <button
+                onClick={() => bulkMutation.mutate("start-all")}
+                disabled={bulkMutation.isPending || processes.every(p => p.status === "running")}
+                className="px-3 py-1.5 text-sm font-mono text-slate-400 hover:text-green-400 disabled:opacity-30 transition-colors"
+              >
+                Start all
+              </button>
+              <button
+                onClick={() => bulkMutation.mutate("stop-all")}
+                disabled={bulkMutation.isPending || processes.every(p => p.status !== "running")}
+                className="px-3 py-1.5 text-sm font-mono text-slate-400 hover:text-red-400 disabled:opacity-30 transition-colors"
+              >
+                Stop all
+              </button>
+              <span className="text-slate-800">|</span>
+            </>
+          )}
           <button
             onClick={handleExport}
             disabled={processes.length === 0}

@@ -63,6 +63,7 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
         env: t.Optional(t.String({ default: "{}" })),
         autoRestart: t.Optional(t.Boolean({ default: false })),
         autoStart: t.Optional(t.Boolean({ default: false })),
+        notes: t.Optional(t.String()),
       }),
     }
   )
@@ -87,6 +88,7 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
         env: t.String(),
         autoRestart: t.Boolean(),
         autoStart: t.Boolean(),
+        notes: t.String(),
       })),
     }
   )
@@ -161,6 +163,25 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
     },
     { params: t.Object({ id: t.String() }) }
   )
+
+  // Start all stopped processes
+  .post("/start-all", ({ }) => {
+    const rows = db.select().from(processes).all();
+    for (const row of rows) {
+      const state = processManager.get(row.id);
+      if (state?.status === "running") continue;
+      processManager.init(row.id, row.autoRestart);
+      const env = JSON.parse(row.env ?? "{}") as Record<string, string>;
+      processManager.start(row.id, row.command, row.cwd ?? ".", env, row.autoRestart);
+    }
+    return { success: true };
+  })
+
+  // Stop all running processes
+  .post("/stop-all", ({ }) => {
+    processManager.stopAll();
+    return { success: true };
+  })
 
   // Export all process definitions as JSON
   .get("/export", () => {

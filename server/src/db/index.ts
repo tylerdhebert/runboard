@@ -26,6 +26,7 @@ export function initDb() {
   for (const sql of [
     "ALTER TABLE processes ADD COLUMN auto_start INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE processes ADD COLUMN saved_logs TEXT",
+    "ALTER TABLE processes ADD COLUMN notes TEXT",
   ]) {
     try { sqlite.run(sql); } catch {}
   }
