@@ -1,4 +1,4 @@
-const BASE = (process.env.RUNBOARD_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const BASE = (process.env.RUNBOARD_URL ?? "http://localhost:3737").replace(/\/$/, "");
 
 export interface Process {
   id: string;
