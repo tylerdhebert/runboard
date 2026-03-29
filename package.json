@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun run --filter '*' dev",
     "build": "bun run --filter '*' build",
+    "tui": "cd tui && bun run start",
     "install:all": "bun install"
   },
   "devDependencies": {

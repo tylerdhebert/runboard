@@ -27,6 +27,8 @@ const TEMPLATES: Template[] = [
   { name: "Rails server", command: "rails server" },
   { name: "Django", command: "python manage.py runserver" },
   { name: "Go run", command: "go run ." },
+  { name: "Angular", command: "ng serve" },
+  { name: ".NET", command: "dotnet run" },
 ];
 
 export function ProcessForm({ process, onClose, onSaved }: Props) {
