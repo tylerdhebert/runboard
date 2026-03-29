@@ -65,25 +65,25 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
 
   const lines: React.ReactNode[] = [];
 
-  for (const section of SECTIONS) {
+  SECTIONS.forEach((section, si) => {
     lines.push(
-      <Text key={`h-${section.title}`} color={theme.accent} bold>
+      <Text key={`h-${si}`} color={theme.accent} bold>
         {section.title}
       </Text>
     );
-    for (const [key, desc] of section.keys) {
+    section.keys.forEach(([shortcut, desc], ki) => {
       lines.push(
-        <Box key={`k-${key}`}>
+        <Box key={`k-${si}-${ki}`}>
           <Text color={theme.dimFg}>{"  "}</Text>
           <Text color={theme.accent} bold>
-            {key.padEnd(keyCol)}
+            {shortcut.padEnd(keyCol)}
           </Text>
           <Text color={theme.normalFg}>{desc.slice(0, descCol)}</Text>
         </Box>
       );
-    }
-    lines.push(<Text key={`sp-${section.title}`}>{" "}</Text>);
-  }
+    });
+    lines.push(<Text key={`sp-${si}`}>{" "}</Text>);
+  });
 
   // Vertically center the modal box
   const innerH = lines.length + 4; // borders + title + footer
