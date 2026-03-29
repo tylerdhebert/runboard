@@ -158,7 +158,6 @@ export function ProcessForm({ process, width, height, onSave, onCancel }: Proces
 
   return (
     <Box
-      position="absolute"
       flexDirection="column"
       alignItems="center"
       width={width}

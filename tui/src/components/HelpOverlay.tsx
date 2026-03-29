@@ -91,7 +91,6 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
 
   return (
     <Box
-      position="absolute"
       flexDirection="column"
       alignItems="center"
       width={width}

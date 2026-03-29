@@ -371,28 +371,40 @@ export function App() {
           width={columns}
         />
 
-        {/* Main panels */}
-        <Box flexDirection="row" height={panelH} width={columns}>
-          <ProcessPanel
-            processes={processes}
-            selectedIdx={selectedIdx}
-            focused={focus === "list" && !isOverlay}
-            width={listW}
+        {/* Main content: panels OR overlay — never both, so no transparency bleed */}
+        {showHelp ? (
+          <HelpOverlay width={columns} height={panelH} />
+        ) : formMode ? (
+          <ProcessForm
+            process={formMode === "edit" ? selectedProcess : null}
+            width={columns}
             height={panelH}
-            deleteConfirm={deleteConfirm}
+            onSave={handleFormSave}
+            onCancel={() => setFormMode(null)}
           />
-          <LogPanel
-            process={selectedProcess}
-            logs={logs}
-            focused={focus === "logs" && !isOverlay}
-            filterMode={filterMode}
-            filterText={filterText}
-            onFilterChange={setFilterText}
-            scrollOffset={logScrollOffset}
-            width={logW}
-            height={panelH}
-          />
-        </Box>
+        ) : (
+          <Box flexDirection="row" height={panelH} width={columns}>
+            <ProcessPanel
+              processes={processes}
+              selectedIdx={selectedIdx}
+              focused={focus === "list"}
+              width={listW}
+              height={panelH}
+              deleteConfirm={deleteConfirm}
+            />
+            <LogPanel
+              process={selectedProcess}
+              logs={logs}
+              focused={focus === "logs"}
+              filterMode={filterMode}
+              filterText={filterText}
+              onFilterChange={setFilterText}
+              scrollOffset={logScrollOffset}
+              width={logW}
+              height={panelH}
+            />
+          </Box>
+        )}
 
         {/* Status bar */}
         <StatusBar
@@ -403,19 +415,6 @@ export function App() {
           deleteConfirm={deleteConfirm}
           width={columns}
         />
-
-        {/* Overlays */}
-        {showHelp && <HelpOverlay width={columns} height={rows} />}
-
-        {formMode && (
-          <ProcessForm
-            process={formMode === "edit" ? selectedProcess : null}
-            width={columns}
-            height={rows}
-            onSave={handleFormSave}
-            onCancel={() => setFormMode(null)}
-          />
-        )}
       </Box>
     </ThemeContext.Provider>
   );
