@@ -2,6 +2,9 @@
   "name": "runboard-tui",
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "runboard": "src/index.tsx"
+  },
   "scripts": {
     "start": "bun run src/index.tsx",
     "dev": "bun --watch src/index.tsx"
