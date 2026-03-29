@@ -60,13 +60,16 @@ export function App() {
 
   const selectedProcess = processes[selectedIdx] ?? null;
 
-  // Load logs when selected process changes
+  // Load logs + reset per-process UI state when selected process changes
   useEffect(() => {
     const id = selectedProcess?.id ?? null;
     if (id === selectedIdRef.current) return;
     selectedIdRef.current = id;
     setLogs([]);
     setLogScrollOffset(0);
+    setFilterMode(false);
+    setFilterText("");
+    setDeleteConfirm(false);
     if (id) {
       getProcessLogs(id, 500).then(setLogs).catch(() => {});
     }
@@ -112,10 +115,12 @@ export function App() {
             prev.map((p) => {
               if (p.id !== pid) return p;
               if (event === "process:status") {
+                const newStatus = d.status as Process["status"];
                 return {
                   ...p,
-                  status: d.status as Process["status"],
-                  pid: (d.pid as number | null) ?? p.pid,
+                  status: newStatus,
+                  pid: newStatus === "running" ? ((d.pid as number | null) ?? p.pid) : null,
+                  startedAt: newStatus === "running" ? (p.startedAt ?? new Date().toISOString()) : p.startedAt,
                   restartCount: (d.restartCount as number | undefined) ?? p.restartCount,
                 };
               }
@@ -175,7 +180,7 @@ export function App() {
   // Compute layout
   const listW = Math.max(28, Math.floor(columns * 0.32));
   const logW = Math.max(20, columns - listW);
-  const panelH = Math.max(4, rows - 3); // header(1) + statusbar(1) + border overhead
+  const panelH = Math.max(4, rows - 2); // header(1) + statusbar(1)
 
   // Key handler
   const isOverlay = showHelp || formMode !== null;
