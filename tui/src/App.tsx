@@ -246,6 +246,11 @@ export function App() {
           return;
         }
 
+        // These actions don't require a selected process
+        if (input === "n") { setFormMode("create"); setDeleteConfirm(false); return; }
+        if (input === "a") { startAll().catch(() => {}); return; }
+        if (input === "z") { stopAll().catch(() => {}); return; }
+
         const proc = selectedProcess;
         if (!proc) return;
 
@@ -274,11 +279,6 @@ export function App() {
           setDeleteConfirm(false);
           return;
         }
-        if (input === "n") {
-          setFormMode("create");
-          setDeleteConfirm(false);
-          return;
-        }
         if (input === "d") {
           if (deleteConfirm) {
             deleteProcess(proc.id).catch(() => {});
@@ -286,14 +286,6 @@ export function App() {
           } else {
             setDeleteConfirm(true);
           }
-          return;
-        }
-        if (input === "a") {
-          startAll().catch(() => {});
-          return;
-        }
-        if (input === "z") {
-          stopAll().catch(() => {});
           return;
         }
       }
