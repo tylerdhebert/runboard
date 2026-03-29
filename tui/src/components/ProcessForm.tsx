@@ -156,14 +156,24 @@ export function ProcessForm({ process, width, height, onSave, onCancel }: Proces
   const inputW = boxW - labelW - 8;
   const currentHint = FIELDS[fieldIdx]?.hint;
 
+  const row = " ".repeat(width);
+
   return (
-    <Box
-      flexDirection="column"
-      alignItems="center"
-      width={width}
-      height={height}
-      paddingTop={topPad}
-    >
+    // Outer: absolute, covers the panels area with a solid backdrop
+    <Box position="absolute" flexDirection="column" width={width} height={height}>
+      {/* Solid backdrop */}
+      {Array.from({ length: height }, (_, i) => (
+        <Text key={i} backgroundColor={theme.headerBg}>{row}</Text>
+      ))}
+      {/* Modal box on top */}
+      <Box
+        position="absolute"
+        flexDirection="column"
+        alignItems="center"
+        width={width}
+        height={height}
+        paddingTop={topPad}
+      >
       <Box
         borderStyle="round"
         borderColor={theme.accent}
@@ -248,6 +258,7 @@ export function ProcessForm({ process, width, height, onSave, onCancel }: Proces
             <Text color={theme.error}>{"  ⚠ " + error}</Text>
           </Box>
         )}
+      </Box>
       </Box>
     </Box>
   );

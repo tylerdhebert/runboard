@@ -85,35 +85,44 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
     lines.push(<Text key={`sp-${section.title}`}>{" "}</Text>);
   }
 
-  // Vertically center
-  const innerH = lines.length + 4; // +4 for borders + title
+  // Vertically center the modal box
+  const innerH = lines.length + 4; // borders + title + footer
   const topPad = Math.max(0, Math.floor((height - innerH) / 2));
+  const row = " ".repeat(width);
 
   return (
-    <Box
-      flexDirection="column"
-      alignItems="center"
-      width={width}
-      height={height}
-      paddingTop={topPad}
-    >
+    // Outer: absolute, covers the panels area
+    <Box position="absolute" flexDirection="column" width={width} height={height}>
+      {/* Solid backdrop — every cell painted with the background color */}
+      {Array.from({ length: height }, (_, i) => (
+        <Text key={i} backgroundColor={theme.headerBg}>{row}</Text>
+      ))}
+      {/* Modal box — absolutely positioned on top of the backdrop */}
       <Box
-        borderStyle="round"
-        borderColor={theme.accent}
+        position="absolute"
         flexDirection="column"
-        paddingX={2}
-        paddingY={1}
-        width={boxW}
+        alignItems="center"
+        width={width}
+        height={height}
+        paddingTop={topPad}
       >
-        <Box marginBottom={1} justifyContent="center">
-          <Text color={theme.accent} bold>
-            {" "}
-            runboard — keyboard shortcuts{" "}
-          </Text>
-        </Box>
-        {lines}
-        <Box marginTop={1} justifyContent="center">
-          <Text color={theme.mutedFg}>press [?] or [esc] to close</Text>
+        <Box
+          borderStyle="round"
+          borderColor={theme.accent}
+          flexDirection="column"
+          paddingX={2}
+          paddingY={1}
+          width={boxW}
+        >
+          <Box marginBottom={1} justifyContent="center">
+            <Text color={theme.accent} bold>
+              {" "}runboard — keyboard shortcuts{" "}
+            </Text>
+          </Box>
+          {lines}
+          <Box marginTop={1} justifyContent="center">
+            <Text color={theme.mutedFg}>press [?] or [esc] to close</Text>
+          </Box>
         </Box>
       </Box>
     </Box>
