@@ -88,16 +88,21 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
   // Vertically center the modal box
   const innerH = lines.length + 4; // borders + title + footer
   const topPad = Math.max(0, Math.floor((height - innerH) / 2));
-  const row = " ".repeat(width);
+
+  // Backdrop covers only the modal box footprint
+  const backdropH = innerH + 2; // +2 for paddingY
+  const backdropLeft = Math.floor((width - boxW) / 2);
+  const backdropRow = " ".repeat(boxW);
 
   return (
-    // Outer: absolute, covers the panels area
     <Box position="absolute" flexDirection="column" width={width} height={height}>
-      {/* Backdrop — spaces with no bg color erase panels and show terminal native background */}
-      {Array.from({ length: height }, (_, i) => (
-        <Text key={i} >{row}</Text>
-      ))}
-      {/* Modal box — absolutely positioned on top of the backdrop */}
+      {/* Backdrop: only the modal's footprint */}
+      <Box flexDirection="column" marginTop={topPad} marginLeft={backdropLeft}>
+        {Array.from({ length: backdropH }, (_, i) => (
+          <Text key={i}>{backdropRow}</Text>
+        ))}
+      </Box>
+      {/* Modal box — absolutely positioned on top */}
       <Box
         position="absolute"
         flexDirection="column"

@@ -156,16 +156,20 @@ export function ProcessForm({ process, width, height, onSave, onCancel }: Proces
   const inputW = boxW - labelW - 8;
   const currentHint = FIELDS[fieldIdx]?.hint;
 
-  const row = " ".repeat(width);
+  // Backdrop covers only the modal box footprint
+  const backdropH = TOTAL + 10; // fields + title + buttons + borders + padding
+  const backdropLeft = Math.floor((width - boxW) / 2);
+  const backdropRow = " ".repeat(boxW);
 
   return (
-    // Outer: absolute, covers the panels area with a solid backdrop
     <Box position="absolute" flexDirection="column" width={width} height={height}>
-      {/* Solid backdrop */}
-      {Array.from({ length: height }, (_, i) => (
-        <Text key={i} >{row}</Text>
-      ))}
-      {/* Modal box on top */}
+      {/* Backdrop: only the modal's footprint, positioned to match */}
+      <Box flexDirection="column" marginTop={topPad} marginLeft={backdropLeft}>
+        {Array.from({ length: backdropH }, (_, i) => (
+          <Text key={i}>{backdropRow}</Text>
+        ))}
+      </Box>
+      {/* Modal box — absolutely positioned on top */}
       <Box
         position="absolute"
         flexDirection="column"
