@@ -371,7 +371,7 @@ export function App() {
           width={columns}
         />
 
-        {/* Panels — always rendered */}
+        {/* Panels + overlays share the same Box so absolute positioning is scoped here */}
         <Box flexDirection="row" height={panelH} width={columns}>
           <ProcessPanel
             processes={processes}
@@ -392,19 +392,18 @@ export function App() {
             width={logW}
             height={panelH}
           />
+          {/* Overlays — absolute inside this box, won't bleed into header/statusbar */}
+          {showHelp && <HelpOverlay width={columns} height={panelH} />}
+          {formMode && (
+            <ProcessForm
+              process={formMode === "edit" ? selectedProcess : null}
+              width={columns}
+              height={panelH}
+              onSave={handleFormSave}
+              onCancel={() => setFormMode(null)}
+            />
+          )}
         </Box>
-
-        {/* Overlays — drawn on top with their own solid backdrop */}
-        {showHelp && <HelpOverlay width={columns} height={panelH} />}
-        {formMode && (
-          <ProcessForm
-            process={formMode === "edit" ? selectedProcess : null}
-            width={columns}
-            height={panelH}
-            onSave={handleFormSave}
-            onCancel={() => setFormMode(null)}
-          />
-        )}
 
         {/* Status bar */}
         <StatusBar

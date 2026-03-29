@@ -163,7 +163,7 @@ export function ProcessForm({ process, width, height, onSave, onCancel }: Proces
     <Box position="absolute" flexDirection="column" width={width} height={height}>
       {/* Solid backdrop */}
       {Array.from({ length: height }, (_, i) => (
-        <Text key={i} backgroundColor={theme.headerBg}>{row}</Text>
+        <Text key={i} backgroundColor="#000000" dimColor>{row}</Text>
       ))}
       {/* Modal box on top */}
       <Box

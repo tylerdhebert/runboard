@@ -95,7 +95,7 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
     <Box position="absolute" flexDirection="column" width={width} height={height}>
       {/* Solid backdrop — every cell painted with the background color */}
       {Array.from({ length: height }, (_, i) => (
-        <Text key={i} backgroundColor={theme.headerBg}>{row}</Text>
+        <Text key={i} backgroundColor="#000000" dimColor>{row}</Text>
       ))}
       {/* Modal box — absolutely positioned on top of the backdrop */}
       <Box
