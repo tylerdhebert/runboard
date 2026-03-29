@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "runboard": "src/index.tsx"
+    "runboard": "src/start.tsx"
   },
   "scripts": {
     "start": "bun run src/index.tsx",
-    "dev": "bun --watch src/index.tsx"
+    "dev": "bun --watch src/index.tsx",
+    "link": "bun link"
   },
   "dependencies": {
     "ink": "^5.1.0",
