@@ -93,9 +93,9 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
   return (
     // Outer: absolute, covers the panels area
     <Box position="absolute" flexDirection="column" width={width} height={height}>
-      {/* Solid backdrop — every cell painted with the background color */}
+      {/* Backdrop — spaces with no bg color erase panels and show terminal native background */}
       {Array.from({ length: height }, (_, i) => (
-        <Text key={i} backgroundColor="#000000" dimColor>{row}</Text>
+        <Text key={i} >{row}</Text>
       ))}
       {/* Modal box — absolutely positioned on top of the backdrop */}
       <Box
