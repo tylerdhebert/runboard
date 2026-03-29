@@ -24,18 +24,32 @@ logPersistence.load = (id) => {
   } catch {}
   return [];
 };
+logPersistence.savePid = (id, pid) => {
+  try {
+    db.update(processes)
+      .set({ lastPid: pid, updatedAt: nowIso() })
+      .where(eq(processes.id, id))
+      .run();
+  } catch {}
+};
+logPersistence.loadPid = (id) => {
+  try {
+    const row = db.select({ lastPid: processes.lastPid }).from(processes).where(eq(processes.id, id)).get();
+    return row?.lastPid ?? null;
+  } catch { return null; }
+};
 
 // Helper: sync DB row into processManager registry
-function syncToRegistry(row: typeof processes.$inferSelect) {
-  processManager.init(row.id, row.autoRestart, row.healthUrl);
+async function syncToRegistry(row: typeof processes.$inferSelect) {
+  await processManager.init(row.id, row.autoRestart, row.healthUrl);
 }
 
 export const processRoutes = new Elysia({ prefix: "/processes" })
   // List all processes with runtime state merged in
-  .get("/", () => {
+  .get("/", async () => {
     const rows = db.select().from(processes).all();
     // Ensure all DB processes are in the registry
-    rows.forEach(syncToRegistry);
+    for (const row of rows) await syncToRegistry(row);
     return rows.map(({ savedLogs: _savedLogs, ...row }) => {
       const { logBuffer: _logBuffer, ...runtime } = processManager.get(row.id) ?? {};
       return { ...row, ...runtime };
@@ -261,3 +275,18 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
       }),
     }
   );
+
+// Auto-start processes marked with autoStart on server boot
+(async () => {
+  const rows = db.select().from(processes).all();
+  // First, sync all to registry (which detects already-running processes)
+  for (const row of rows) await syncToRegistry(row);
+  // Then auto-start any that are configured for it and aren't already running
+  const autoStartRows = rows.filter(r => r.autoStart);
+  for (const row of autoStartRows) {
+    const state = processManager.get(row.id);
+    if (state?.status === "running") continue;
+    const env = JSON.parse(row.env ?? "{}") as Record<string, string>;
+    processManager.start(row.id, row.command, row.cwd ?? ".", env, row.autoRestart);
+  }
+})();

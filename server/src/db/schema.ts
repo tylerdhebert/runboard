@@ -12,6 +12,7 @@ export const processes = sqliteTable("processes", {
   healthUrl: text("health_url"),                 // optional URL to poll for health check
   notes: text("notes"),                          // optional freeform notes about this process
   savedLogs: text("saved_logs"),                 // JSON array — last run's log buffer
+  lastPid: integer("last_pid"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
