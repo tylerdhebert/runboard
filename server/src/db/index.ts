@@ -1,10 +1,14 @@
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { mkdirSync } from "fs";
+import { resolve } from "path";
 import * as schema from "./schema";
 
-mkdirSync("./data", { recursive: true });
-const sqlite = new Database("./data/runboard.db");
+// Use an absolute path so the DB location is always relative to this source
+// file, regardless of where the server process is launched from.
+const DATA_DIR = resolve(import.meta.dir, "../../data");
+mkdirSync(DATA_DIR, { recursive: true });
+const sqlite = new Database(resolve(DATA_DIR, "runboard.db"));
 export const db = drizzle(sqlite, { schema });
 
 export function initDb() {
