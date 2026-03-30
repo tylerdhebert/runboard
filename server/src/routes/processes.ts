@@ -139,6 +139,7 @@ export const processRoutes = new Elysia({ prefix: "/processes" })
     "/:id/stop",
     ({ params }) => {
       processManager.stop(params.id);
+      db.update(processes).set({ lastPid: null, updatedAt: nowIso() }).where(eq(processes.id, params.id)).run();
       return { success: true };
     },
     { params: t.Object({ id: t.String() }) }
